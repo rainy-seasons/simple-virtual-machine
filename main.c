@@ -2,8 +2,6 @@
 #include <stdbool.h>
 
 bool running = true;
-int pc = 0;  // program counter / instruction pointer
-int sp = -1; // stack pointer
 int stack[256];
 
 typedef enum {
@@ -15,10 +13,14 @@ typedef enum {
 } InstructionSet;
 
 typedef enum{
-	A, B, C, D, E, F,
-	REGISTER_SIZE   // easy way to get the size of the registers
+	A, B, C, D, E, F, // General purpose registers
+   	PC,               // program counter / instruction pointer
+	SP,               // stack pointer
+	REGISTER_SIZE     // easy way to get the size of the registers
 } Registers;
 
+#define pc (registers[PC])
+#define sp (registers[SP])
 static int registers[REGISTER_SIZE];
 
 const int program[] = {
