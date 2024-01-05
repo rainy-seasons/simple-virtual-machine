@@ -1,19 +1,27 @@
 #include <stdio.h>
+#include <stdlib.h>
 #include <stdbool.h>
 
+#define STACK_SIZE 256
+#define MEMORY_SIZE 1024
+
 bool running = true;
-int stack[256];
+int stack[STACK_SIZE];
+int memory[MEMORY_SIZE];
 
 typedef enum {
 	PSH,
 	ADD,
 	POP,
 	SET,
-	HLT
+	HLT,
+	ALLOC,
+	FREE,
 } InstructionSet;
 
 typedef enum{
-	A, B, C, D, E, F, // General purpose registers
+	A, B, C, D, E,    // General purpose registers
+	F,				  // F register is used for storing a memory address
    	PC,               // program counter / instruction pointer
 	SP,               // stack pointer
 	REGISTER_SIZE     // easy way to get the size of the registers
@@ -23,10 +31,14 @@ typedef enum{
 #define sp (registers[SP])
 static int registers[REGISTER_SIZE];
 
+/* TODO: implement file handling
+ * 	this is temporary. Programs will be read from files.*/
 const int program[] = {
 	PSH, 5,
 	PSH, 6,
 	ADD,
+	ALLOC, 10,
+	FREE,
 	POP,
 	HLT
 };
@@ -40,7 +52,7 @@ void evaluate(int op)
 {
 	switch (op)
 	{
-		case HLT: {
+		case HLT: { // HALT
 			running = false;
 			break;
 		}
@@ -50,8 +62,7 @@ void evaluate(int op)
 			break;
 		}
 		case POP: {
-			int val = stack[sp--];      // store the top stack value and decrement stack ptr to pop it
-			printf("popped %d\n", val); // for debug purposes
+			registers[C] = stack[sp--];      // store the top stack value and decrement stack ptr to pop it
 			break;
 		}
 		case ADD: {
@@ -60,6 +71,26 @@ void evaluate(int op)
 			int sum = registers[A] + registers[B];
 			sp++;                                  // allocate space on the stack
 			stack[sp] = sum;                       // push sum onto stack
+			break;
+		}
+		case ALLOC: { // Dynamically allocates memory - Takes one argument specifying size of memory to allocate
+			int size = program[++pc];
+			int* ptr = malloc(size * sizeof(int));
+			if (ptr == NULL)
+			{
+				fprintf(stderr, "ERROR: Failed to allocate memory.\n");
+				running = false;
+			}
+			else
+			{
+				sp++;
+				registers[F] = (int)ptr; // Pushes the address of allocated memory in the F register
+			}
+			break;
+		}
+		case FREE: {                       // Deallocates allocated memory
+			int* ptr = (int*)registers[F]; // Gets the address of the allocated memory from the F register
+			free(ptr);
 			break;
 		}
 	}
