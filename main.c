@@ -9,14 +9,15 @@
 
 int stack[STACK_SIZE];
 int memory[MEMORY_SIZE];
-static int registers[REGISTER_SIZE] = {0};
 
-#define pc (registers[PC])
-#define sp (registers[SP])
+Registers registers = {0};
+
+#define pc (registers.PC)
+#define sp (registers.SP)
 
 bool running = true;
 
-                                                                                  // Table of function pointers for handling instructions
+// Table of function pointers for handling instructions
 typedef void (*InstructionHandler)();
 InstructionHandler handlers[] =
 {
@@ -71,7 +72,7 @@ void handle_POP()
 {
 	if (sp >= 0)
 	{
-		registers[C] = stack[sp--];                                               // Store top stack value and pop it
+		registers.C = stack[sp--];                                                // Store top stack value and pop it
 	}
 	else
 	{
@@ -116,24 +117,22 @@ void handle_ALLOC()
 {
 	size_t size = program[++pc];                                                  // Gets the size value that follows the ALLOC instruction. How much memory to allocate.
 	int* ptr = malloc(size * sizeof(int));                                        // Allocate some memory and store the address in ptr
-	printf("Allocated %zu bytes at address: 0x%p\n", size * sizeof(int), ptr);
-	if (ptr == NULL)
+	if (ptr == 0)
 	{
-		printf("ALLOC PTR IS NULL\n");
 		fprintf(stderr, "ERROR: Failed to allocate memory.\n");
 		running = false;
 	}
 	else
 	{
-		registers[F] = (uintptr_t)ptr;                                            // Pushes the address of the allocated memory into the F register
+		registers.F = ptr;                                                        // Pushes the address of the allocated memory into the F register
 	}
 }
 
 void handle_FREE()
 {
-	intptr_t ptr = registers[F];
+	int* ptr = registers.F;
 	free((void*)ptr);                                                             // Free the memory
-	printf("FREED MEMORY AT ADDRESS: 0x%d\n", registers[F]);
+	printf("FREED MEMORY AT ADDRESS: 0x%p\n", registers.F);
 }
 
 void handle_ST()
@@ -142,32 +141,32 @@ void handle_ST()
 	{
 		int value = stack[sp--];                                                  // Take value from top of stack and pop it
 
-		uintptr_t address = registers[F];                                         // Retrieve the address that was allocated and stored in F register
-		printf("ST: Address retrieved from F register: 0x%p\n", (void*)address);
+		int* address = registers.F;                                               // Retrieve the address that was allocated and stored in F register
 
-		int* intPtrAddr = (int*)address;                                          // Tells the compiler that intPtrAddr will be a pointer to an int
-		                                                                          // TODO: currently causes segfault
-		// *intPtrAddr = value;                                                   // Dereference pointer and set value to the value popped off the stack
-		intPtrAddr[0] = value;                                                    // use array subscripting instead of dereferencing
+		if (address == NULL)
+		{
+			fprintf(stderr, "ERROR: Attempting to store value in NULL pointer.");
+			running = false;
+			return;
+		}
+		*registers.F = value;                                                     // Dereference pointer and set value to the value popped off the stack
 		printf("ST: Stored value: %d\n", value);
 	}
 	else
 	{
 		fprintf(stderr, "ERROR: Stack underflow during ST operation: %d\n", pc);
+		running = false;
 	}
 }
 
 void handle_LD()
 {
-	printf("EXECUTING LD\n");
 	if (sp >= 0)
 	{
-		intptr_t address = registers[F];
-		printf("LD: Address from F register: 0x%p\n", (void*)address);            // Debugging print statement
-		                                                                          // int* intPtrAddr = (int*)address;
-		                                                                          // int value = *intPtrAddr;
-		int value = *(int*)address;
-		printf("LD: Value retrieved from address: %d\n", value);
+		int* address = registers.F;                                               // Get the pointer from F register
+
+		int value = *(int*)address;                                               // Get the value held at the address
+
 		stack[++sp] = value;                                                      // Push loaded value onto the stack
 	}
 	else

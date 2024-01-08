@@ -6,7 +6,7 @@ void handle_ALLOC();
 void handle_FREE();
 void handle_ST();
 void handle_LD();
-void handle_PRNT(); // TODO: this is temporary for debugging
+void handle_PRNT();
 void handle_HLT();
 
 void evaluate();
@@ -20,16 +20,15 @@ typedef enum {
 	FREE,
 	ST,
 	LD,
-	PRNT, // TODO: temp instruction for debugging values - just prints the top of the stack
+	PRNT,
 	HLT,
 } InstructionSet;
 
-typedef enum{
-	A, B, C, D, E,    // General purpose registers
-	F,				  // F register is used for storing a memory address
-   	PC,               // program counter / instruction pointer
-	SP,               // stack pointer
-	REGISTER_SIZE     // easy way to get the size of the registers
+typedef struct {
+	int A, B, C, D, E; // General purpose registers
+	int PC;
+	int SP;            // Program counter and stack pointer
+	int* F;            // F register is used to store a pointer / memory address
 } Registers;
 
 /* TODO: implement file handling
@@ -40,11 +39,14 @@ const int program[] = {
 	ADD,
 	PRNT,
 	ALLOC, 2,
+	PRNT,
 	ST,
 	PRNT,
-	PSH, 10,
 	LD,
+	PRNT,
+	PSH, 10,
 	SUB,
+	PRNT,
 	FREE,
 	HLT
 };
