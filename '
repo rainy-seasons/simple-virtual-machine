@@ -20,7 +20,7 @@ int memory[MEMORY_SIZE];
 int program[MAX_PROGRAM_SIZE];
 
 // These are used to map the string instructions from program file to enum values for handler funcitons
-const char* instructionStrings[] = {"PSH", "POP", "ADD", "SUB", "MOV", "ALC", "FRE", "ST", "LD", "MSG", "HLT"};
+const char* instructionStrings[] = {"PSH", "POP", "ADD", "SUB", "MOV", "ALLOC", "FREE", "ST", "LD", "MSG", "HLT"};
 const int instructionCount = 11;
 
 
