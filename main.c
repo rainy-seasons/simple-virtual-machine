@@ -1,5 +1,4 @@
 #include "vm_definitions.h"
-#include <stdio.h>
 #include <ctype.h>
 #include <stdlib.h>
 #include <string.h>
@@ -7,12 +6,14 @@
 
 #define STACK_SIZE  256
 #define MEMORY_SIZE 1024
-#define MAX_PROGRAM_SIZE 128 // Max instructions to read from file
+#define MAX_PROGRAM_SIZE 1000 // Max instructions to read from file
 							 
 Registers registers = {0};
 
-#define pc (registers.PC)
-#define sp (registers.SP)
+#define pc registers.PC
+#define sp registers.SP
+
+#define MOV_FLAG 0x01 // Rightmost bit represents mov flag - tells mov if the value is given (1) or pulled from the stack (0)
 
 int stack[STACK_SIZE];
 int memory[MEMORY_SIZE];
@@ -22,7 +23,6 @@ int program[MAX_PROGRAM_SIZE];
 // These are used to map the string instructions from program file to enum values for handler funcitons
 const char* instructionStrings[] = {"PSH", "POP", "ADD", "SUB", "MOV", "ALC", "FRE", "ST", "LD", "MSG", "HLT"};
 const int instructionCount = 11;
-
 
 bool running = true;
 
@@ -72,18 +72,23 @@ void loadProgram(const char* filename)
 	char token[4]; // Max length of instruction should be 3
 	while (fscanf(file, "%3s", &token) != EOF)
 	{
-		if (isdigit(token[0]))
+		if (strcmp(token, "MOV") == 0)
+		{
+			program[i] = mapStringToEnum(token); // Put the MOV instruction in the program array
+			helper_MOV(file, &i);
+		}
+		else if (isdigit(token[0]))
 		{
 			program[i] = atoi(token); // Integers are allowed as values for certain instructions.
 									  // TODO: CURRENTLY NO ERROR HANDLING TO CHECK IF THE INSTRUCTION ALLOWS INTEGERS
 									  // FIXME: CHECK THE INSTRUCTION IF THE FOLLOWING TOKEN IS A DIGIT
+									  // 		could do this with the flags?
 		}
 		else
 		{
 			program[i] = mapStringToEnum(token);
 		}
 		i++;
-		//fscanf(file, "%*[^0-9]");
 	}
 	fclose(file);
 }
@@ -102,11 +107,54 @@ InstructionSet mapStringToEnum(const char* str)
 	return HLT;
 }
 
+// Sets a flag
+void setFlag(int* flags, int flag)
+{
+	*flags |= flag;
+}
+
+// Clears a flag
+void clearFlag(int* flags, int flag)
+{
+	*flags &= ~flag;
+}
+
+// Checks if a flag is set
+int isFlagSet(int flags, int flag)
+{
+	return (flags & flag) != 0;
+}
+
 void evaluate()
 {
 	int instruction = program[pc];
     handlers[instruction]();
 	pc++;
+}
+
+/* HELPER FUNCTION TO HANDLE SETTING UP MOV OPERATIONS */
+void helper_MOV(FILE* file, int* i)
+{
+	int val; 
+	char dstReg;
+	int count = fscanf(file, "%d", &val);
+	if (count == 1)
+	{
+		program[*i+1] = val;
+		count = fscanf(file, " %c", &dstReg);
+		if (count == 1)
+		{
+			// A second argument is found, indicating the destination register.
+			program[*i+2] = dstReg;
+			setFlag(&registers.flags, MOV_FLAG);
+			*i+=2;
+		}
+		else
+		{
+			// Only one argument found, clear flag.
+			clearFlag(&registers.flags, MOV_FLAG);
+		}
+	}
 }
 
 void handle_MSG()
@@ -175,9 +223,48 @@ void handle_SUB()
 
 void handle_MOV()
 {
-	printf("MOV NOT YET IMPLEMENTED");
-	//registers.C = program[++pc];
-	//printf("MOV: Register C now contains %d\n", registers.C);
+	if (sp >= 1)
+	{
+		int  value;
+		int  dstReg;
+		int* dstPtr;
+
+		// A value is given explicitly
+		if (isFlagSet(registers.flags, MOV_FLAG))
+		{
+			value = program[++pc];
+			dstReg = program[++pc];
+		}
+		// The value is not given explicitly so it's pulled from the stack
+		else
+		{
+			dstReg = program[++pc];
+			value = stack[sp--];
+		}
+
+		switch (dstReg)
+		{
+			case 'A':
+				dstPtr = &registers.A;
+				break;
+			case 'B':
+				dstPtr = &registers.B;
+				break;
+			case 'C':
+				dstPtr = &registers.C;
+				break;
+			case 'D':
+				dstPtr = &registers.D;
+				break;
+			case 'E':
+				dstPtr = &registers.E;
+				break;
+			default:
+				fprintf(stderr, "ERROR: Unknown register \"%d\"\n", dstReg);
+				break;
+		}
+		*dstPtr = value; // Set the register to hold the given value;
+	}
 }
 
 void handle_ALC()
