@@ -16,6 +16,7 @@ void helper_MOV(FILE* file, int* i);
 
 void evaluate();
 void loadProgram(const char* filename);
+//int* getRegister(char str);
 
 void setFlag(int* flags, int flag);
 void clearFlag(int* flags, int flag);

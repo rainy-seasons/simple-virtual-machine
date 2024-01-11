@@ -50,10 +50,10 @@ int main(int argc, char *argv[])
 		fprintf(stderr, "Usage: %s <program_file>\n", argv[0]);
 		return EXIT_FAILURE;
 	}
+	registers.flags = 0;
 	loadProgram(argv[1]);
 	while (running)
 	{
-		
 		evaluate();
 	}
 	return 0;
@@ -137,23 +137,21 @@ void helper_MOV(FILE* file, int* i)
 {
 	int val; 
 	char dstReg;
-	int count = fscanf(file, "%d", &val);
-	if (count == 1)
+	if (fscanf(file, "%d", &val) == 1)           // Checking if the argument following the MOV instruction is an int.
 	{
-		program[*i+1] = val;
-		count = fscanf(file, " %c", &dstReg);
-		if (count == 1)
+		program[*i+1] = val;                     // Move the value into the program array
+		if (fscanf(file, "%c", &dstReg) == 1)    // Checking for destination register.
 		{
-			// A second argument is found, indicating the destination register.
-			program[*i+2] = dstReg;
-			setFlag(&registers.flags, MOV_FLAG);
-			*i+=2;
+			program[*i+2] = dstReg;              // Move destination register into program array.
+			setFlag(&registers.flags, MOV_FLAG); // Set the MOV_FLAG - indicating the value is given explicitly
+			*i+=2;                               // Increment to skip over the value and register.
 		}
-		else
-		{
-			// Only one argument found, clear flag.
-			clearFlag(&registers.flags, MOV_FLAG);
-		}
+	}
+	else if (fscanf(file, "%c", &dstReg) == 1)   // Only the destination register is given - value is taken from the stack
+	{
+		program[*i+1] = dstReg;					 // Push the destination register into the program array
+		clearFlag(&registers.flags, MOV_FLAG);   // Clear the MOV_FLAG indicating implicit value retrieval
+		*i+=1; 									 // Increment to skip over the register
 	}
 }
 
@@ -223,7 +221,7 @@ void handle_SUB()
 
 void handle_MOV()
 {
-	if (sp >= 1)
+	if (sp >= 0)
 	{
 		int  value;
 		int  dstReg;
@@ -234,12 +232,14 @@ void handle_MOV()
 		{
 			value = program[++pc];
 			dstReg = program[++pc];
+			printf("MOV FLAG IS SET - DSTREG = %c | value = %d\n", dstReg, value);
 		}
 		// The value is not given explicitly so it's pulled from the stack
 		else
 		{
 			dstReg = program[++pc];
 			value = stack[sp--];
+			printf("MOV FLAG IS NOT SET - DSTREG = %c | value = %d\n", dstReg, value);
 		}
 
 		switch (dstReg)
@@ -261,9 +261,10 @@ void handle_MOV()
 				break;
 			default:
 				fprintf(stderr, "ERROR: Unknown register \"%d\"\n", dstReg);
-				break;
+				return;
 		}
 		*dstPtr = value; // Set the register to hold the given value;
+		printf("MOV: Register %c now contains value %d\n", dstReg, value);
 	}
 }
 
