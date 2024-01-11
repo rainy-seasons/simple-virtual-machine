@@ -21,8 +21,8 @@ int memory[MEMORY_SIZE];
 int program[MAX_PROGRAM_SIZE];
 
 // These are used to map the string instructions from program file to enum values for handler funcitons
-const char* instructionStrings[] = {"PSH", "POP", "ADD", "SUB", "MOV", "ALC", "FRE", "ST", "LD", "MSG", "HLT"};
-const int instructionCount = 11;
+const char* instructionStrings[] = {"PSH", "POP", "POR", "ADD", "SUB", "MOV", "ALC", "FRE", "ST", "LD", "MSG", "HLT"};
+const int instructionCount = 12;
 
 bool running = true;
 
@@ -32,6 +32,7 @@ InstructionHandler handlers[] =
 {
 	handle_PSH,
 	handle_POP,
+	handle_POR,
 	handle_ADD,
 	handle_SUB,
 	handle_MOV,
@@ -76,6 +77,11 @@ void loadProgram(const char* filename)
 		{
 			program[i] = mapStringToEnum(token); // Put the MOV instruction in the program array
 			helper_MOV(file, &i);
+		}
+		else if (strcmp(token, "POR") == 0)
+		{
+			program[i] = mapStringToEnum(token);
+			helper_POR(file, &i);
 		}
 		else if (isdigit(token[0]))
 		{
@@ -183,6 +189,17 @@ void helper_MOV(FILE* file, int* i)
 	}
 }
 
+/* HELPER FUNCTION TO HANDLE SETTING UP POR OPERATIONS */
+void helper_POR(FILE* file, int* i)
+{
+	char reg;
+	if (fscanf(file, " %c", &reg) == 1) // Check if the register is present
+	{
+		program[*i+1] = reg; // Add register to program array
+		*i+=1;
+	}
+}
+
 void handle_MSG()
 {
 	printf("top of the stack: %d\n", stack[sp]);
@@ -190,7 +207,7 @@ void handle_MSG()
 
 void handle_HLT()
 {
-	printf("Executing HLT\n");
+	printf("HLT: HALTING EXECUTION\n");
 	running = false;
 }
 
@@ -235,10 +252,13 @@ void handle_SUB()
 {
 	if (sp >= 1)
 	{
-		int diff = stack[sp-1] - stack[sp]; // Subtracts the 2nd stack value from the top stack value
+		int val1 = stack[sp-1];
+		int val2 = stack[sp];
+		int diff = val1 - val2; // Subtracts the 2nd stack value from the top stack value
 		sp-=2;
 		sp++;
 		stack[sp] = diff;
+		printf("SUB: %d - %d = %d\n", val1, val2, diff);
 	}
 	else
 	{
@@ -272,6 +292,20 @@ void handle_MOV()
 		*dstPtr = value; // Set the register to hold the given value;
 						 
 		printf("MOV: Register %c now contains value %d\n", dstReg, value);
+	}
+}
+
+void handle_POR()
+{
+	if (sp >= 0)
+	{
+		int reg;
+		int* pReg;
+		reg = program[++pc];     // Get the register from the program array
+		pReg = getRegister(reg); // Get a pointer to the register
+		stack[++sp] = *pReg;     // Push the value from the register onto the stack
+		printf("POR: Popped value %d from register %c\n", *pReg, reg);
+		*pReg = 0;               // Clear the register
 	}
 }
 
