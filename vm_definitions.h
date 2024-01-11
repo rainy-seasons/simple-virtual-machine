@@ -14,26 +14,27 @@ void handle_HLT();
 
 void helper_MOV(FILE* file, int* i);
 
+int* getRegister(int reg);
+
 void evaluate();
 void loadProgram(const char* filename);
-//int* getRegister(char str);
 
 void setFlag(int* flags, int flag);
 void clearFlag(int* flags, int flag);
 int isFlagSet(int flags, int flag);
 
 typedef enum {
-	PSH,
-	POP,
-	ADD,
-	SUB,
-	MOV,
-	ALC,
-	FRE,
-	ST,
-	LD,
-	MSG,
-	HLT,
+	PSH, 	// Pushes a value onto the stack
+	POP, 	// Pops a value off the stack - TODO: pop from stack into register
+	ADD, 	// Adds the two values on top of the stack and pushes the result to the top
+	SUB, 	// Subtracts the two values on top of the stack and pushes result
+	MOV, 	// Moves a value into a specified register. Uses value on top of the stack if no value is given
+	ALC, 	// Allocates a specified number of bytes of memory and stores the pointer in F register - TODO: Store the pointer on the stack to give flexibility
+	FRE, 	// Frees allocated memory
+	ST,  	// Stores a value into allocated memory - TODO: Give more flexibility with registers and pointers
+	LD,  	// Loads a value from allocated memory to the stack - TODO: Give more flexibility with registers and pointers
+	MSG, 	// Just prints the value on top of the stack for now
+	HLT, 	// Halts the program
 } InstructionSet;
 
 InstructionSet mapStringToEnum(const char* str);

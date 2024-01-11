@@ -125,6 +125,34 @@ int isFlagSet(int flags, int flag)
 	return (flags & flag) != 0;
 }
 
+/* HELPER FUNCTION TO RETURN A REGISTER GIVEN ITS STRING REPRESENTATION */
+int* getRegister(int reg)
+{
+	int* dstPtr = NULL;
+	switch (reg)
+	{
+		case 'A':
+			dstPtr = &registers.A;
+			break;
+		case 'B':
+			dstPtr = &registers.B;
+			break;
+		case 'C':
+			dstPtr = &registers.C;
+			break;
+		case 'D':
+			dstPtr = &registers.D;
+			break;
+		case 'E':
+			dstPtr = &registers.E;
+			break;
+		default:
+			fprintf(stderr, "ERROR: Unknown register \"%d\"\n", reg);
+			break;
+	}
+	return dstPtr;
+}
+
 void evaluate()
 {
 	int instruction = program[pc];
@@ -140,7 +168,7 @@ void helper_MOV(FILE* file, int* i)
 	if (fscanf(file, "%d", &val) == 1)           // Checking if the argument following the MOV instruction is an int.
 	{
 		program[*i+1] = val;                     // Move the value into the program array
-		if (fscanf(file, "%c", &dstReg) == 1)    // Checking for destination register.
+		if (fscanf(file, " %c", &dstReg) == 1)    // Checking for destination register.
 		{
 			program[*i+2] = dstReg;              // Move destination register into program array.
 			setFlag(&registers.flags, MOV_FLAG); // Set the MOV_FLAG - indicating the value is given explicitly
@@ -232,38 +260,17 @@ void handle_MOV()
 		{
 			value = program[++pc];
 			dstReg = program[++pc];
-			printf("MOV FLAG IS SET - DSTREG = %c | value = %d\n", dstReg, value);
 		}
 		// The value is not given explicitly so it's pulled from the stack
 		else
 		{
 			dstReg = program[++pc];
 			value = stack[sp--];
-			printf("MOV FLAG IS NOT SET - DSTREG = %c | value = %d\n", dstReg, value);
 		}
 
-		switch (dstReg)
-		{
-			case 'A':
-				dstPtr = &registers.A;
-				break;
-			case 'B':
-				dstPtr = &registers.B;
-				break;
-			case 'C':
-				dstPtr = &registers.C;
-				break;
-			case 'D':
-				dstPtr = &registers.D;
-				break;
-			case 'E':
-				dstPtr = &registers.E;
-				break;
-			default:
-				fprintf(stderr, "ERROR: Unknown register \"%d\"\n", dstReg);
-				return;
-		}
+		dstPtr = getRegister(dstReg);
 		*dstPtr = value; // Set the register to hold the given value;
+						 
 		printf("MOV: Register %c now contains value %d\n", dstReg, value);
 	}
 }
