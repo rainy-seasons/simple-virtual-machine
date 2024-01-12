@@ -8,6 +8,8 @@ A simple virtual machine used to run programs in an imaginary instruction set. S
 	POR - Pops a value from a given register back onto the stack
 	ADD - Adds the two values on top of the stack together
 	SUB - Subtracts top two values of the stack
+	MUL - Multiplies top two values of stack and pushes the result
+	DIV - Divides top two values of stack and pushes the result
 	MOV - Moves a value into a given register. Takes value from top of the stack if no value is given.
 	ALC - Allocates a specified number of bytes of memory and stores the pointer in the F register
 	FRE - Frees the allocated memory

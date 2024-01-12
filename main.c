@@ -22,7 +22,6 @@ int program[MAX_PROGRAM_SIZE];
 
 // These are used to map the string instructions from program file to enum values for handler funcitons
 const char* instructionStrings[] = {"PSH", "POP", "POR", "ADD", "SUB", "MUL", "DIV", "MOV", "ALC", "FRE", "ST", "LD", "MSG", "HLT", "INSTRUCTION_COUNT"};
-//const int instructionCount = 14;
 
 bool running = true;
 
@@ -104,7 +103,6 @@ void loadProgram(const char* filename)
 // Maps the input string for an instruction to its respective enum value
 InstructionSet mapStringToEnum(const char* str)
 {
-	//for (int i = 0; i < instructionCount; ++i)
 	for (int i = 0; i < INSTRUCTION_COUNT; ++i)
 	{
 		if (strcmp(str, instructionStrings[i]) == 0)
