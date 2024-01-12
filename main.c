@@ -4,7 +4,7 @@
 #include <string.h>
 #include <stdbool.h>
 
-#define STACK_SIZE  256
+#define STACK_SIZE  1024
 #define MEMORY_SIZE 1024
 #define MAX_PROGRAM_SIZE 1000 // Max instructions to read from file
 							 
@@ -21,8 +21,8 @@ int memory[MEMORY_SIZE];
 int program[MAX_PROGRAM_SIZE];
 
 // These are used to map the string instructions from program file to enum values for handler funcitons
-const char* instructionStrings[] = {"PSH", "POP", "POR", "ADD", "SUB", "MOV", "ALC", "FRE", "ST", "LD", "MSG", "HLT"};
-const int instructionCount = 12;
+const char* instructionStrings[] = {"PSH", "POP", "POR", "ADD", "SUB", "MUL", "DIV", "MOV", "ALC", "FRE", "ST", "LD", "MSG", "HLT", "INSTRUCTION_COUNT"};
+//const int instructionCount = 14;
 
 bool running = true;
 
@@ -35,6 +35,8 @@ InstructionHandler handlers[] =
 	handle_POR,
 	handle_ADD,
 	handle_SUB,
+	handle_MUL,
+	handle_DIV,
 	handle_MOV,
 	handle_ALC,
 	handle_FRE,
@@ -102,7 +104,8 @@ void loadProgram(const char* filename)
 // Maps the input string for an instruction to its respective enum value
 InstructionSet mapStringToEnum(const char* str)
 {
-	for (int i = 0; i < instructionCount; ++i)
+	//for (int i = 0; i < instructionCount; ++i)
+	for (int i = 0; i < INSTRUCTION_COUNT; ++i)
 	{
 		if (strcmp(str, instructionStrings[i]) == 0)
 		{
@@ -132,7 +135,7 @@ int isFlagSet(int flags, int flag)
 }
 
 /* HELPER FUNCTION TO RETURN A REGISTER GIVEN ITS STRING REPRESENTATION */
-int* getRegister(int reg)
+int* getRegister(char reg)
 {
 	int* dstPtr = NULL;
 	switch (reg)
@@ -171,10 +174,10 @@ void helper_MOV(FILE* file, int* i)
 {
 	int val; 
 	char dstReg;
-	if (fscanf(file, "%d", &val) == 1)           // Checking if the argument following the MOV instruction is an int.
+	if (fscanf(file, " %d", &val) == 1)          // Checking if the argument following the MOV instruction is an int.
 	{
 		program[*i+1] = val;                     // Move the value into the program array
-		if (fscanf(file, " %c", &dstReg) == 1)    // Checking for destination register.
+		if (fscanf(file, " %c", &dstReg) == 1)   // Checking for destination register.
 		{
 			program[*i+2] = dstReg;              // Move destination register into program array.
 			setFlag(&registers.flags, MOV_FLAG); // Set the MOV_FLAG - indicating the value is given explicitly
@@ -236,10 +239,13 @@ void handle_ADD()
 {
 	if (sp >= 1)
 	{
-		int sum = stack[sp-1] + stack[sp]; // Adds the top two values on the stack together
+		int val1 = stack[sp];
+		int val2 = stack[sp-1];
+		int sum = val1 + val2; // Adds the top two values on the stack together
 		sp--;                              // decrement stack pointer
 		sp++;                              // Allocate space on the stack
 		stack[sp] = sum;                   // Push sum onto stack
+		printf("ADD: %d + %d = %d\n", val1, val2, sum);
 	}
 	else
 	{
@@ -267,6 +273,42 @@ void handle_SUB()
 	}
 }
 
+void handle_MUL()
+{
+	if (sp >= 0)
+	{
+		int val1 = stack[sp-1];
+		int val2 = stack[sp];
+		int product = val1 * val2;
+		sp-=2;
+		sp++;
+		stack[sp] = product;
+		printf("MUL: %d * %d = %d\n", val1, val2, product);
+	}
+	else
+	{
+		fprintf(stderr, "ERROR: Stack underflow during MUL operation: %d\n", pc);
+	}
+}
+
+void handle_DIV()
+{
+	if (sp >= 0)
+	{
+		int val1 = stack[sp-1];
+		int val2 = stack[sp];
+		int quotient = val1 / val2;
+		sp-=2;
+		sp++;
+		stack[sp] = quotient;
+		printf("MUL: %d / %d = %d\n", val1, val2, quotient);
+	}
+	else
+	{
+		fprintf(stderr, "ERROR: Stack underflow during MUL operation: %d\n", pc);
+	}
+}
+
 void handle_MOV()
 {
 	if (sp >= 0)
@@ -288,7 +330,7 @@ void handle_MOV()
 			value = stack[sp--];
 		}
 
-		dstPtr = getRegister(dstReg);
+		dstPtr = getRegister((char)dstReg);
 		*dstPtr = value; // Set the register to hold the given value;
 						 
 		printf("MOV: Register %c now contains value %d\n", dstReg, value);
@@ -302,7 +344,7 @@ void handle_POR()
 		int reg;
 		int* pReg;
 		reg = program[++pc];     // Get the register from the program array
-		pReg = getRegister(reg); // Get a pointer to the register
+		pReg = getRegister((char)reg); // Get a pointer to the register
 		stack[++sp] = *pReg;     // Push the value from the register onto the stack
 		printf("POR: Popped value %d from register %c\n", *pReg, reg);
 		*pReg = 0;               // Clear the register
