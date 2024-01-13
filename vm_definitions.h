@@ -8,6 +8,7 @@ void handle_SUB();
 void handle_MUL();
 void handle_DIV();
 void handle_MOV();
+void handle_CMP();
 void handle_ALC();
 void handle_FRE();
 void handle_ST();
@@ -17,6 +18,7 @@ void handle_HLT();
 
 void helper_MOV(FILE* file, int* i);
 void helper_POR(FILE* file, int* i);
+void helper_CMP(FILE* file, int* i);
 
 int* getRegister(char reg);
 
@@ -36,6 +38,7 @@ typedef enum {
 	MUL,    // Multiplies two values on top of the stack and pushes the result
 	DIV,    // Divides two values on top of the stack and pushes the result
 	MOV, 	// Moves a value into a specified register. Uses value on top of the stack if no value is given
+	CMP, 	// Does a comparison and flips the CMP_FLAG if values are equal. Can be given two registers, or one value and one register.
 	ALC, 	// Allocates a specified number of bytes of memory and stores the pointer in F register - TODO: Store the pointer on the stack to give flexibility
 	FRE, 	// Frees allocated memory
 	ST,  	// Stores a value into allocated memory - TODO: Give more flexibility with registers and pointers

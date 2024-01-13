@@ -13,15 +13,17 @@ Registers registers = {0};
 #define pc registers.PC
 #define sp registers.SP
 
-#define MOV_FLAG 0x01 // Rightmost bit represents mov flag - tells mov if the value is given (1) or pulled from the stack (0)
+#define MOV_FLAG   (1 << 0) // Rightmost bit represents mov flag - tells mov if the value is given (1) or pulled from the stack (0)
+#define CMP_FLAG   (1 << 1) // Second rightmost bit represents the CMP flag - records the result of a comparison. (1) if same, (0) if different
+#define CMP_R_FLAG (1 << 2) // (1) When CMP is taking two registers as arguments. (0) When taking one register and one explicit value
 
 int stack[STACK_SIZE];
-int memory[MEMORY_SIZE];
+//int memory[MEMORY_SIZE]; // TODO: Currently unused.
 
 int program[MAX_PROGRAM_SIZE];
 
 // These are used to map the string instructions from program file to enum values for handler funcitons
-const char* instructionStrings[] = {"PSH", "POP", "POR", "ADD", "SUB", "MUL", "DIV", "MOV", "ALC", "FRE", "ST", "LD", "MSG", "HLT", "INSTRUCTION_COUNT"};
+const char* instructionStrings[] = {"PSH", "POP", "POR", "ADD", "SUB", "MUL", "DIV", "MOV", "CMP", "ALC", "FRE", "ST", "LD", "MSG", "HLT", "INSTRUCTION_COUNT"};
 
 bool running = true;
 
@@ -37,6 +39,7 @@ InstructionHandler handlers[] =
 	handle_MUL,
 	handle_DIV,
 	handle_MOV,
+	handle_CMP,
 	handle_ALC,
 	handle_FRE,
 	handle_ST,
@@ -74,6 +77,7 @@ void loadProgram(const char* filename)
 	char token[4]; // Max length of instruction should be 3
 	while (fscanf(file, "%3s", &token) != EOF)
 	{
+		//TODO: Clean this up and do it a better way.
 		if (strcmp(token, "MOV") == 0)
 		{
 			program[i] = mapStringToEnum(token); // Put the MOV instruction in the program array
@@ -84,12 +88,14 @@ void loadProgram(const char* filename)
 			program[i] = mapStringToEnum(token);
 			helper_POR(file, &i);
 		}
+		else if (strcmp(token, "CMP") == 0)
+		{
+			program[i] = mapStringToEnum(token);
+			helper_CMP(file, &i);
+		}
 		else if (isdigit(token[0]))
 		{
 			program[i] = atoi(token); // Integers are allowed as values for certain instructions.
-									  // TODO: CURRENTLY NO ERROR HANDLING TO CHECK IF THE INSTRUCTION ALLOWS INTEGERS
-									  // FIXME: CHECK THE INSTRUCTION IF THE FOLLOWING TOKEN IS A DIGIT
-									  // 		could do this with the flags?
 		}
 		else
 		{
@@ -199,6 +205,32 @@ void helper_POR(FILE* file, int* i)
 		program[*i+1] = reg; // Add register to program array
 		*i+=1;
 	}
+}
+
+/* HELPER FUNCTION TO HANDLE SETTING UP CMP OPERATIONS */
+void helper_CMP(FILE* file, int* i)
+{
+	char reg, reg2;
+	int arg2;
+	if (fscanf(file, " %c", &reg) == 1) // First argument should always be a register
+	{
+		program[*i+1] = reg;
+		if (fscanf(file, " %c", &reg2) == 1) // Check if 2nd arg is also a register (char)
+		{
+			program[*i+2] = reg2;
+			setFlag(&registers.flags, CMP_R_FLAG); // Set flag so the handler function knows to expect two registers
+		}
+		else if (fscanf(file, " %d", &arg2) == 1) // Check if 2nd arg is an explicit int
+		{
+			program[*i+2] = arg2;
+			clearFlag(&registers.flags, CMP_R_FLAG); // Clear flag so handler function knows to expect one register and one value
+		}
+	}
+	else
+	{
+		fprintf(stderr, "ERROR: Inavlid usage of CMP instruction: %d - CMP {register} {register} or CMP {register} {value}", pc);
+	}
+	*i+=2; // Skip the arguments since they've been handled in this function
 }
 
 void handle_MSG()
@@ -332,6 +364,46 @@ void handle_MOV()
 		*dstPtr = value; // Set the register to hold the given value;
 						 
 		printf("MOV: Register %c now contains value %d\n", dstReg, value);
+	}
+}
+
+void handle_CMP()
+{
+	if (sp >= 0)
+	{
+		int  reg1 = program[++pc];
+		int  reg2 = program[++pc];
+		int  val1, val2;
+		int* pReg;
+
+		// val1 is always going to be a register so just grab the value in that register ahead of time
+		pReg = getRegister((char)reg1);
+		val1 = *pReg;
+
+		if (isFlagSet(registers.flags, CMP_R_FLAG))
+		{
+			pReg = getRegister((char)reg2);
+			val2 = *pReg;
+		}
+		else
+		{
+			val2 = reg2;
+		}
+
+		if (val1 == val2)
+		{
+			printf("CMP: %d and %d are equal.\n", val1, val2);
+			setFlag(&registers.flags, CMP_FLAG);
+		}
+		else
+		{
+			printf("CMP: %d and %d are NOT equal.\n", val1, val2);
+			clearFlag(&registers.flags, CMP_FLAG);
+		}
+	}
+	else
+	{
+		fprintf(stderr, "ERROR: Stack underflow during CMP operation: %d", pc);
 	}
 }
 
