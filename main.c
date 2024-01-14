@@ -23,7 +23,7 @@ int stack[STACK_SIZE];
 int program[MAX_PROGRAM_SIZE];
 
 // These are used to map the string instructions from program file to enum values for handler funcitons
-const char* instructionStrings[] = {"PSH", "POP", "POR", "ADD", "SUB", "MUL", "DIV", "MOV", "CMP", "ALC", "FRE", "ST", "LD", "MSG", "HLT", "INSTRUCTION_COUNT"};
+const char* instructionStrings[] = {"PSH", "POP", "POR", "ADD", "SUB", "MUL", "DIV", "MOV", "CMP", "JMP", "JIE", "JNE", "ALC", "FRE", "ST", "LD", "MSG", "HLT", "INSTRUCTION_COUNT"};
 
 bool running = true;
 
@@ -40,6 +40,9 @@ InstructionHandler handlers[] =
 	handle_DIV,
 	handle_MOV,
 	handle_CMP,
+	handle_JMP,
+	handle_JIE,
+	handle_JNE,
 	handle_ALC,
 	handle_FRE,
 	handle_ST,
@@ -405,6 +408,21 @@ void handle_CMP()
 	{
 		fprintf(stderr, "ERROR: Stack underflow during CMP operation: %d", pc);
 	}
+}
+
+void handle_JMP()
+{
+	printf("JMP: NOT YET IMPLEMENTED\n");
+}
+
+void handle_JIE()
+{
+	printf("JIE: NOT YET IMPLEMENTED\n");
+}
+
+void handle_JNE()
+{
+	printf("JNE: NOT YET IMPLEMENTED\n");
 }
 
 void handle_POR()

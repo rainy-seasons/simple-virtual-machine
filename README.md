@@ -11,6 +11,9 @@ A simple virtual machine used to run programs in an imaginary instruction set. S
 	MUL - Multiplies top two values of stack and pushes the result
 	DIV - Divides top two values of stack and pushes the result
 	MOV - Moves a value into a given register. Takes value from top of the stack if no value is given.
+	JMP - Jumps the instruction pointer to a specified point of execution
+	JIE - Jump If  Equal - Jumps to specified point of execution only if the last CMP instruction was true. (equal).
+	JNE - Jump Not Equal - Jumps to specified point of execution only if last CMP instruction was false. (not equal)
 	CMP - Compares two values. Can be given two registers or one register and one value. Flips the CMP_FLAG to 1 if they are equal.
 	ALC - Allocates a specified number of bytes of memory and stores the pointer in the F register
 	FRE - Frees the allocated memory
