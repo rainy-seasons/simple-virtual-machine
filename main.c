@@ -76,33 +76,40 @@ void loadProgram(const char* filename)
 		fprintf(stderr, "ERROR: Unable to open file: %s", filename);
 		exit(EXIT_FAILURE);
 	}
-	int i = 0;
-	char token[4]; // Max length of instruction should be 3
-	while (fscanf(file, "%3s", &token) != EOF)
+	int   val;
+	int   i = 0;
+	char  line[256]; // line buffer
+	char* token;
+	char* arg;
+	while (fgets(line, sizeof(line), file) != NULL) // Read line by line
 	{
-		//TODO: Clean this up and do it a better way.
-		if (strcmp(token, "MOV") == 0)
-		{
-			program[i] = mapStringToEnum(token); // Put the MOV instruction in the program array
-			helper_MOV(file, &i);
-		}
-		else if (strcmp(token, "POR") == 0)
+		token = strtok(line, " "); // get the instruction
+		token[strcspn(token, "\r\n")] = '\0'; // Trim newline characters off the token
+											  
+		if (token)
 		{
 			program[i] = mapStringToEnum(token);
-			helper_POR(file, &i);
-		}
-		else if (strcmp(token, "CMP") == 0)
-		{
-			program[i] = mapStringToEnum(token);
-			helper_CMP(file, &i);
-		}
-		else if (isdigit(token[0]))
-		{
-			program[i] = atoi(token); // Integers are allowed as values for certain instructions.
-		}
-		else
-		{
-			program[i] = mapStringToEnum(token);
+			if (strcmp(token, "MOV") == 0)
+			{
+				helper_MOV(&i);
+			}
+			else if (strcmp(token, "POR") == 0)
+			{
+				helper_POR(&i);
+			}
+			else if (strcmp(token, "CMP") == 0)
+			{
+				helper_CMP(&i);
+			}
+			else
+			{
+				arg = strtok(NULL, " "); // Get the argument
+				if (arg)
+				{
+					val = atoi(arg); // cast arg to int -- only thing here should be integers passed to instructions like PSH. Register args are handled in helper functions.
+					program[++i] = val; // add to program array
+				}
+			}
 		}
 		i++;
 	}
@@ -176,57 +183,69 @@ void evaluate()
 	pc++;
 }
 
-/* HELPER FUNCTION TO HANDLE SETTING UP MOV OPERATIONS */
-void helper_MOV(FILE* file, int* i)
+void handle_comment(FILE* file)
 {
-	int val; 
-	char dstReg;
-	if (fscanf(file, " %d", &val) == 1)          // Checking if the argument following the MOV instruction is an int.
+	char c;
+	int cLen = 0;
+	while ((c = getc(file)) != '\n')
 	{
-		program[*i+1] = val;                     // Move the value into the program array
-		if (fscanf(file, " %c", &dstReg) == 1)   // Checking for destination register.
-		{
-			program[*i+2] = dstReg;              // Move destination register into program array.
-			setFlag(&registers.flags, MOV_FLAG); // Set the MOV_FLAG - indicating the value is given explicitly
-			*i+=2;                               // Increment to skip over the value and register.
-		}
+		printf("%c\n", c);
+		cLen++;
 	}
-	else if (fscanf(file, "%c", &dstReg) == 1)   // Only the destination register is given - value is taken from the stack
+}
+
+/* HELPER FUNCTION TO HANDLE SETTING UP MOV OPERATIONS */
+void helper_MOV(int* i)
+{
+	char* val = strtok(NULL, " ");  // GET FIRST ARGUMENT OF INSTRUCTION
+	char* val2 = strtok(NULL, " "); // GET SECOND ARGUMENT OF INSTRUCTION
+
+	if (isdigit(*val)) // First value is a digit
 	{
-		program[*i+1] = dstReg;					 // Push the destination register into the program array
-		clearFlag(&registers.flags, MOV_FLAG);   // Clear the MOV_FLAG indicating implicit value retrieval
-		*i+=1; 									 // Increment to skip over the register
+		setFlag(&registers.flags, MOV_FLAG);
+		program[*i+1] = atoi(val);  // Add the explicit value to the program array
+		program[*i+2] = *val2; 		// The destination register has to be given if int value is explicit
+		*i+=2;
+	}
+	else
+	{
+		clearFlag(&registers.flags, MOV_FLAG);
+		program[*i+1] = *val;
+		*i+=1;
 	}
 }
 
 /* HELPER FUNCTION TO HANDLE SETTING UP POR OPERATIONS */
-void helper_POR(FILE* file, int* i)
+void helper_POR(int* i)
 {
-	char reg;
-	if (fscanf(file, " %c", &reg) == 1) // Check if the register is present
+	char* reg = strtok(NULL, " ");
+	if (reg)
 	{
-		program[*i+1] = reg; // Add register to program array
+		program[*i+1] = *reg; // Add register to program array
 		*i+=1;
 	}
 }
 
 /* HELPER FUNCTION TO HANDLE SETTING UP CMP OPERATIONS */
-void helper_CMP(FILE* file, int* i)
+void helper_CMP(int* i)
 {
-	char reg, reg2;
-	int arg2;
-	if (fscanf(file, " %c", &reg) == 1) // First argument should always be a register
+	char* reg = strtok(NULL, " ");
+	char* arg2 = strtok(NULL, " ");
+	if (reg)
 	{
-		program[*i+1] = reg;
-		if (fscanf(file, " %c", &reg2) == 1) // Check if 2nd arg is also a register (char)
+		program[*i+1] = *reg; // First arg should *always* be a register
+		if (arg2)
 		{
-			program[*i+2] = reg2;
-			setFlag(&registers.flags, CMP_R_FLAG); // Set flag so the handler function knows to expect two registers
-		}
-		else if (fscanf(file, " %d", &arg2) == 1) // Check if 2nd arg is an explicit int
-		{
-			program[*i+2] = arg2;
-			clearFlag(&registers.flags, CMP_R_FLAG); // Clear flag so handler function knows to expect one register and one value
+			if (isdigit(*arg2)) // 2nd arg can be given as explicit int or another register
+			{
+				program[*i+2] = atoi(arg2);
+				clearFlag(&registers.flags, CMP_R_FLAG); // Value is given explicitly
+			}
+			else
+			{
+				program[*i+2] = *arg2;
+				setFlag(&registers.flags, CMP_R_FLAG); // Set flag so the handler function knows to expect two registers
+			}
 		}
 	}
 	else

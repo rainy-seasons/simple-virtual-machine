@@ -50,5 +50,6 @@ PSH 5
 LD        ; Loads 9 from the allocated memory address
 POR B     ; Pop 25 from B register back onto the stack
 ADD       ; Add 9+25
+FRE       ; Frees the previously allocated memory
 HLT       ; Halt execution
 ```

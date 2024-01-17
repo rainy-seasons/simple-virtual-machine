@@ -19,9 +19,11 @@ void handle_LD();
 void handle_MSG();
 void handle_HLT();
 
-void helper_MOV(FILE* file, int* i);
-void helper_POR(FILE* file, int* i);
-void helper_CMP(FILE* file, int* i);
+void helper_MOV(int* i);
+void helper_POR(int* i);
+void helper_CMP(int* i);
+
+void handle_comment(FILE* file);
 
 int* getRegister(char reg);
 
