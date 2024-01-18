@@ -23,8 +23,6 @@ void helper_MOV(int* i);
 void helper_POR(int* i);
 void helper_CMP(int* i);
 
-void handle_comment(FILE* file);
-
 int* getRegister(char reg);
 
 void evaluate();

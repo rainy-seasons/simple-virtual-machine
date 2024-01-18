@@ -83,8 +83,13 @@ void loadProgram(const char* filename)
 	char* arg;
 	while (fgets(line, sizeof(line), file) != NULL) // Read line by line
 	{
-		token = strtok(line, " "); // get the instruction
-		token[strcspn(token, "\r\n")] = '\0'; // Trim newline characters off the token
+		token = strtok(line, " ");                  // get the instruction
+		token[strcspn(token, "\r\n")] = '\0';       // Trim newline characters off the token
+
+		if (token[0] == ';') // Skip comments - token system automatically ignores inline comments
+		{
+			continue;
+		}
 											  
 		if (token)
 		{
@@ -106,8 +111,8 @@ void loadProgram(const char* filename)
 				arg = strtok(NULL, " "); // Get the argument
 				if (arg)
 				{
-					val = atoi(arg); // cast arg to int -- only thing here should be integers passed to instructions like PSH. Register args are handled in helper functions.
-					program[++i] = val; // add to program array
+					val = atoi(arg);     // cast arg to int -- only thing here should be integers passed to instructions like PSH. Register args are handled in helper functions.
+					program[++i] = val;  // add to program array
 				}
 			}
 		}
@@ -183,33 +188,22 @@ void evaluate()
 	pc++;
 }
 
-void handle_comment(FILE* file)
-{
-	char c;
-	int cLen = 0;
-	while ((c = getc(file)) != '\n')
-	{
-		printf("%c\n", c);
-		cLen++;
-	}
-}
-
 /* HELPER FUNCTION TO HANDLE SETTING UP MOV OPERATIONS */
 void helper_MOV(int* i)
 {
-	char* val = strtok(NULL, " ");  // GET FIRST ARGUMENT OF INSTRUCTION
-	char* val2 = strtok(NULL, " "); // GET SECOND ARGUMENT OF INSTRUCTION
+	char* val = strtok(NULL, " ");             // Get first argument of instruction
+	char* val2 = strtok(NULL, " ");            // Get second argument of instruction
 
-	if (isdigit(*val)) // First value is a digit
+	if (isdigit(*val))                         // First value is a digit
 	{
 		setFlag(&registers.flags, MOV_FLAG);
-		program[*i+1] = atoi(val);  // Add the explicit value to the program array
-		program[*i+2] = *val2; 		// The destination register has to be given if int value is explicit
-		*i+=2;
+		program[*i+1] = atoi(val);             // Add the explicit value to the program array
+		program[*i+2] = *val2;                 // The destination register has to be given if int value is explicit
+		*i+=2;                                 // Skip the args
 	}
 	else
 	{
-		clearFlag(&registers.flags, MOV_FLAG);
+		clearFlag(&registers.flags, MOV_FLAG); // Value is not explicit -- clear the flag
 		program[*i+1] = *val;
 		*i+=1;
 	}

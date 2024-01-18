@@ -34,7 +34,6 @@ flags,        - Holds flag information in a bit field
 ## Example
 ```
 ; This program just moves values around in order to illustrate usage
-; Note: Comments are not yet implemented.
 
 PSH 5     ; Pushing values onto the stack
 PSH 6
