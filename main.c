@@ -7,23 +7,25 @@
 #define STACK_SIZE  1024
 #define MEMORY_SIZE 1024
 #define MAX_PROGRAM_SIZE 1000 // Max instructions to read from file
-							 
+
 Registers registers = {0};
 
-#define pc registers.PC
-#define sp registers.SP
+#define pc (registers.PC)
+#define sp (registers.SP)
 
 #define MOV_FLAG   (1 << 0) // Rightmost bit represents mov flag - tells mov if the value is given (1) or pulled from the stack (0)
 #define CMP_FLAG   (1 << 1) // Second rightmost bit represents the CMP flag - records the result of a comparison. (1) if same, (0) if different
 #define CMP_R_FLAG (1 << 2) // (1) When CMP is taking two registers as arguments. (0) When taking one register and one explicit value
 
 int stack[STACK_SIZE];
-//int memory[MEMORY_SIZE]; // TODO: Currently unused.
-
 int program[MAX_PROGRAM_SIZE];
+//int memory[MEMORY_SIZE]; // TODO: Currently unused.
 
 // These are used to map the string instructions from program file to enum values for handler funcitons
 const char* instructionStrings[] = {"PSH", "POP", "POR", "ADD", "SUB", "MUL", "DIV", "MOV", "CMP", "JMP", "JIE", "JNE", "ALC", "FRE", "ST", "LD", "MSG", "HLT", "INSTRUCTION_COUNT"};
+
+KeyValueMap LabelMap;
+char* labels[100];
 
 bool running = true;
 
@@ -53,6 +55,7 @@ InstructionHandler handlers[] =
 
 int main(int argc, char *argv[])
 {
+	LabelMap.size = 0;
 	if (argc != 2)
 	{
 		fprintf(stderr, "Usage: %s <program_file>\n", argv[0]);
@@ -67,6 +70,12 @@ int main(int argc, char *argv[])
 	return 0;
 }
 
+void evaluate()
+{
+	int instruction = program[pc];
+	handlers[instruction]();
+	pc++;
+}
 void loadProgram(const char* filename)
 {
 	FILE* file = fopen(filename, "r");
@@ -90,9 +99,16 @@ void loadProgram(const char* filename)
 		{
 			continue;
 		}
-											  
+
 		if (token)
 		{
+			if (strcmp(token, "label:") == 0)
+			{
+				char* label = strtok(NULL, " ");
+				label[strcspn(label, "\r\n")] = '\0';
+				addToMap(&LabelMap, label, i);
+				continue;
+			}
 			program[i] = mapStringToEnum(token);
 			if (strcmp(token, "MOV") == 0)
 			{
@@ -105,6 +121,10 @@ void loadProgram(const char* filename)
 			else if (strcmp(token, "CMP") == 0)
 			{
 				helper_CMP(&i);
+			}
+			else if (strcmp(token, "JMP") == 0)
+			{
+				helper_JMP(&i);
 			}
 			else
 			{
@@ -181,11 +201,31 @@ int* getRegister(char reg)
 	return dstPtr;
 }
 
-void evaluate()
+void addToMap(KeyValueMap* map, const char* key, int value)
 {
-	int instruction = program[pc];
-    handlers[instruction]();
-	pc++;
+	if (map->size < 100)
+	{
+		strcpy(map->pairs[map->size].key, key);
+		map->pairs[map->size].value = value;
+		map->size++;
+	}
+	else
+	{
+		fprintf(stderr, "ERROR: Map is full. Cannot add more labels.\n");
+	}
+}
+
+int getValue(KeyValueMap* map, const char* key)
+{
+	for (int i = 0; i < map->size; i++)
+	{
+		if (strcmp(map->pairs[i].key, key) == 0)
+		{
+			return map->pairs[i].value;
+		}
+	}
+	printf("KEY: %s NOT FOUND IN MAP\n", key);
+	return -1; // Key not found
 }
 
 /* HELPER FUNCTION TO HANDLE SETTING UP MOV OPERATIONS */
@@ -230,23 +270,41 @@ void helper_CMP(int* i)
 		program[*i+1] = *reg; // First arg should *always* be a register
 		if (arg2)
 		{
+			setFlag(&registers.flags, CMP_R_FLAG); // TWO VALUES ARE GIVEN - FLAG IS SET
 			if (isdigit(*arg2)) // 2nd arg can be given as explicit int or another register
 			{
 				program[*i+2] = atoi(arg2);
-				clearFlag(&registers.flags, CMP_R_FLAG); // Value is given explicitly
 			}
 			else
 			{
 				program[*i+2] = *arg2;
-				setFlag(&registers.flags, CMP_R_FLAG); // Set flag so the handler function knows to expect two registers
 			}
+		}
+		else
+		{
+			clearFlag(&registers.flags, CMP_R_FLAG); // ONE VALUE IS GIVEN - CLEAR FLAG
 		}
 	}
 	else
 	{
 		fprintf(stderr, "ERROR: Inavlid usage of CMP instruction: %d - CMP {register} {register} or CMP {register} {value}", pc);
+	} 
+	// this somehow works even with only one arg. but changing it will break the instruction.
+	*i+=2; // Skip args
+}
+
+void helper_JMP(int* i)
+{
+	char* destination = strtok(NULL, " ");            // Get the label text
+	destination[strcspn(destination, "\r\n")] = '\0'; // Remove line ending strings
+	int count = 0;
+	while (labels[count] != NULL)
+	{
+		count++;
 	}
-	*i+=2; // Skip the arguments since they've been handled in this function
+	labels[count] = strdup(destination);              // Put the destination string into the labels array at the latest element
+	program[*i+1] = count;                            // Add the index as the JMP argument to the program array
+	*i+=1;
 }
 
 void handle_MSG()
@@ -287,7 +345,7 @@ void handle_ADD()
 	{
 		int val1 = stack[sp];
 		int val2 = stack[sp-1];
-		int sum = val1 + val2; // Adds the top two values on the stack together
+		int sum = val1 + val2; 			   // Adds the top two values on the stack together
 		sp--;                              // decrement stack pointer
 		sp++;                              // Allocate space on the stack
 		stack[sp] = sum;                   // Push sum onto stack
@@ -387,23 +445,30 @@ void handle_CMP()
 {
 	if (sp >= 0)
 	{
-		int  reg1 = program[++pc];
-		int  reg2 = program[++pc];
+		int  arg1 = program[++pc];
+		int  arg2 = program[++pc];
 		int  val1, val2;
 		int* pReg;
 
 		// val1 is always going to be a register so just grab the value in that register ahead of time
-		pReg = getRegister((char)reg1);
+		pReg = getRegister((char)arg1);
 		val1 = *pReg;
 
-		if (isFlagSet(registers.flags, CMP_R_FLAG))
+		if (isFlagSet(registers.flags, CMP_R_FLAG)) // Two values are given
 		{
-			pReg = getRegister((char)reg2);
-			val2 = *pReg;
+			if (isdigit(arg2))                      // Explicit int given
+			{
+				val2 = arg2;                        // Just an int
+			}
+			else                                    // Register given as 2nd arg
+			{
+				pReg = getRegister((char)arg2);
+				val2 = *pReg;
+			}
 		}
-		else
+		else // One value is given - compare with top of the stack
 		{
-			val2 = reg2;
+			val2 = stack[sp];
 		}
 
 		if (val1 == val2)
@@ -425,7 +490,10 @@ void handle_CMP()
 
 void handle_JMP()
 {
-	printf("JMP: NOT YET IMPLEMENTED\n");
+	int index = program[++pc];                    // the index of the destination in the labels array
+	char* destination = labels[index];            // Get the destination of the jump, which is the string held in the labels array
+	int value = getValue(&LabelMap, destination); // Get the value from the LabelMap - label being the PC destination
+	pc = value-1;
 }
 
 void handle_JIE()
@@ -444,11 +512,11 @@ void handle_POR()
 	{
 		int reg;
 		int* pReg;
-		reg = program[++pc];     // Get the register from the program array
-		pReg = getRegister((char)reg); // Get a pointer to the register
-		stack[++sp] = *pReg;     // Push the value from the register onto the stack
+		reg = program[++pc];     	    // Get the register from the program array
+		pReg = getRegister((char)reg);  // Get a pointer to the register
+		stack[++sp] = *pReg;     		// Push the value from the register onto the stack
 		printf("POR: Popped value %d from register %c\n", *pReg, reg);
-		*pReg = 0;               // Clear the register
+		*pReg = 0;               		// Clear the register
 	}
 }
 

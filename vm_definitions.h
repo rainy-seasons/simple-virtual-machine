@@ -22,6 +22,7 @@ void handle_HLT();
 void helper_MOV(int* i);
 void helper_POR(int* i);
 void helper_CMP(int* i);
+void helper_JMP(int* i);
 
 int* getRegister(char reg);
 
@@ -31,6 +32,7 @@ void loadProgram(const char* filename);
 void setFlag(int* flags, int flag);
 void clearFlag(int* flags, int flag);
 int isFlagSet(int flags, int flag);
+
 
 typedef enum {
 	PSH, 	// Pushes a value onto the stack
@@ -63,3 +65,17 @@ typedef struct {
 	int* F;            // F register is used to store a pointer / memory address
 	int flags;		   // Flags field
 } Registers;
+
+typedef struct{
+	char key[50];
+	int  value;
+} KeyValuePair;
+
+typedef struct {
+	KeyValuePair pairs[100];
+	int size;
+} KeyValueMap;
+
+
+void addToMap(KeyValueMap* map, const char* key, int value);
+int getValue(KeyValueMap* map, const char* key);
