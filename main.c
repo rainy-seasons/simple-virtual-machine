@@ -122,7 +122,7 @@ void loadProgram(const char* filename)
 			{
 				helper_CMP(&i);
 			}
-			else if (strcmp(token, "JMP") == 0)
+			else if (strcmp(token, "JMP") == 0 || strcmp(token, "JIE") == 0 || strcmp(token, "JNE") == 0)
 			{
 				helper_JMP(&i);
 			}
@@ -496,14 +496,30 @@ void handle_JMP()
 	pc = value-1;
 }
 
+/* JMP IF EQUAL */
 void handle_JIE()
 {
-	printf("JIE: NOT YET IMPLEMENTED\n");
+	if (isFlagSet(registers.flags, CMP_FLAG)) // Last CMP result was equal
+	{
+		handle_JMP();
+	}
+	else
+	{
+		pc++;
+	}
 }
 
+/* JMP NOT EQUAL */
 void handle_JNE()
 {
-	printf("JNE: NOT YET IMPLEMENTED\n");
+	if (!isFlagSet(registers.flags, CMP_FLAG)) // Last CMP result was not equal
+	{
+		handle_JMP();
+	}
+	else
+	{
+		pc++;
+	}
 }
 
 void handle_POR()
