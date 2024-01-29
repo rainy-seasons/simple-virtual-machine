@@ -12,6 +12,8 @@ void handle_CMP();
 void handle_JMP();
 void handle_JIE();
 void handle_JNE();
+void handle_JGT();
+void handle_JLT();
 void handle_ALC();
 void handle_FRE();
 void handle_ST();
@@ -47,6 +49,8 @@ typedef enum {
 	JMP,    // Jumps the instruction pointer to a specified point of execution
 	JIE,	// Jumps to specified point of execution if CMP_FLAG is set (operation was equal / was true)
 	JNE,    // Jumps to specified point of execution if CMP_FLAG is *not* set (operation was not equal / was false)
+	JGT,    // Jumps to specified point of execution if CMP_GT_FLAG is set
+	JLT,	// Jumps to specified point of execution if CMP_GT_FLAG is *not* set
 	ALC, 	// Allocates a specified number of bytes of memory and stores the pointer in F register - TODO: Store the pointer on the stack to give flexibility
 	FRE, 	// Frees allocated memory
 	ST,  	// Stores a value into allocated memory - TODO: Give more flexibility with registers and pointers

@@ -13,16 +13,17 @@ Registers registers = {0};
 #define pc (registers.PC)
 #define sp (registers.SP)
 
-#define MOV_FLAG   (1 << 0) // Rightmost bit represents mov flag - tells mov if the value is given (1) or pulled from the stack (0)
-#define CMP_FLAG   (1 << 1) // Second rightmost bit represents the CMP flag - records the result of a comparison. (1) if same, (0) if different
-#define CMP_R_FLAG (1 << 2) // (1) When CMP is taking two registers as arguments. (0) When taking one register and one explicit value
+#define MOV_FLAG    (1 << 0) // Rightmost bit represents mov flag - tells mov if the value is given (1) or pulled from the stack (0)
+#define CMP_FLAG    (1 << 1) // Second rightmost bit represents the CMP flag - records the result of a comparison. (1) if same, (0) if different
+#define CMP_R_FLAG  (1 << 2) // (1) When CMP is taking two registers as arguments. (0) When taking one register and one explicit value
+#define CMP_GT_FLAG (1 << 3) // (1) When CMP was greater than, and (0) when it was less than
 
 int stack[STACK_SIZE];
 int program[MAX_PROGRAM_SIZE];
 //int memory[MEMORY_SIZE]; // TODO: Currently unused.
 
 // These are used to map the string instructions from program file to enum values for handler funcitons
-const char* instructionStrings[] = {"PSH", "POP", "POR", "ADD", "SUB", "MUL", "DIV", "MOV", "CMP", "JMP", "JIE", "JNE", "ALC", "FRE", "ST", "LD", "MSG", "HLT", "INSTRUCTION_COUNT"};
+const char* instructionStrings[] = {"PSH", "POP", "POR", "ADD", "SUB", "MUL", "DIV", "MOV", "CMP", "JMP", "JIE", "JNE", "JGT", "JLT", "ALC", "FRE", "ST", "LD", "MSG", "HLT", "INSTRUCTION_COUNT"};
 
 KeyValueMap LabelMap;
 char* labels[100];
@@ -45,6 +46,8 @@ InstructionHandler handlers[] =
 	handle_JMP,
 	handle_JIE,
 	handle_JNE,
+	handle_JGT,
+	handle_JLT,
 	handle_ALC,
 	handle_FRE,
 	handle_ST,
@@ -122,7 +125,7 @@ void loadProgram(const char* filename)
 			{
 				helper_CMP(&i);
 			}
-			else if (strcmp(token, "JMP") == 0 || strcmp(token, "JIE") == 0 || strcmp(token, "JNE") == 0)
+			else if (strcmp(token, "JMP") == 0 || strcmp(token, "JIE") == 0 || strcmp(token, "JNE") == 0 || strcmp (token, "JGT") == 0 || strcmp(token, "JLT") == 0)
 			{
 				helper_JMP(&i);
 			}
@@ -480,6 +483,16 @@ void handle_CMP()
 		{
 			printf("CMP: %d and %d are NOT equal.\n", val1, val2);
 			clearFlag(&registers.flags, CMP_FLAG);
+			if (val1 > val2)
+			{
+				printf("%d is greater than %d\n", val1, val2);
+				setFlag(&registers.flags, CMP_GT_FLAG); // Set the Greater Than flag
+			}
+			else
+			{
+				printf("%d is less than %d\n", val1, val2);
+				clearFlag(&registers.flags, CMP_GT_FLAG); // Clear Greater Than flag
+			}
 		}
 	}
 	else
@@ -513,6 +526,31 @@ void handle_JIE()
 void handle_JNE()
 {
 	if (!isFlagSet(registers.flags, CMP_FLAG)) // Last CMP result was not equal
+	{
+		handle_JMP();
+	}
+	else
+	{
+		pc++;
+	}
+}
+
+/* JMP GREATER THAN */
+void handle_JGT()
+{
+	if (isFlagSet(registers.flags, CMP_GT_FLAG)) // Last CMP result was greater than
+	{
+		handle_JMP();
+	}
+	else
+	{
+		pc++;
+	}
+}
+
+void handle_JLT()
+{
+	if (!isFlagSet(registers.flags, CMP_GT_FLAG)) // Last CMP result was less than
 	{
 		handle_JMP();
 	}
