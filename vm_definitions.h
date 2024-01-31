@@ -35,6 +35,7 @@ void setFlag(int* flags, int flag);
 void clearFlag(int* flags, int flag);
 int isFlagSet(int flags, int flag);
 
+void init_type_vars();
 
 typedef enum {
 	PSH, 	// Pushes a value onto the stack
@@ -80,6 +81,12 @@ typedef struct {
 	int size;
 } KeyValueMap;
 
+/* TODO: TEMPORARY WAY TO KEEP TRACK OF CMP/MOV CALLS - EXPLICIT VALUE GIVEN OR NOT */
+typedef struct {
+	int results[100];
+	int index;
+	int size;
+} ARG_INFO;
 
 void addToMap(KeyValueMap* map, const char* key, int value);
 int getValue(KeyValueMap* map, const char* key);

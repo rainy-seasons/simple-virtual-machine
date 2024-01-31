@@ -28,15 +28,9 @@ const char* instructionStrings[] = {"PSH", "POP", "POR", "ADD", "SUB", "MUL", "D
 KeyValueMap LabelMap;
 char* labels[100];
 
-/* TODO: TEMPORARY WAY TO KEEP TRACK OF CMP CALLS - EXPLICIT VALUE GIVEN OR NOT */
-int cmp_results[100];
-int cmp_index = 0;
-int cmp_size = 0;
-
-/* TODO: TEMPORARY WAY TO KEEP TRACK OF MOV CALLS - EXPLICIT VALUE GIVEN OR NOT */
-int mov_results[100];
-int mov_index = 0;
-int mov_size = 0;
+// TODO: These are temporory. Just to keep track of arg count for each instruction of its kind.
+ARG_INFO MOV_INFO;
+ARG_INFO CMP_INFO;
 
 bool running = true;
 
@@ -68,7 +62,8 @@ InstructionHandler handlers[] =
 
 int main(int argc, char *argv[])
 {
-	LabelMap.size = 0;
+	init_type_vars();
+
 	if (argc != 2)
 	{
 		fprintf(stderr, "Usage: %s <program_file>\n", argv[0]);
@@ -81,6 +76,14 @@ int main(int argc, char *argv[])
 		evaluate();
 	}
 	return 0;
+}
+void init_type_vars()
+{
+	LabelMap.size = 0;
+	MOV_INFO.index = 0;
+	MOV_INFO.size = 0;
+	CMP_INFO.index = 0;
+	CMP_INFO.size = 0;
 }
 
 void evaluate()
@@ -249,16 +252,16 @@ void helper_MOV(int* i)
 
 	if (isdigit(*val))                         // First value is a digit
 	{
-		mov_results[mov_size] = 1; 			   // TODO: Temporary fix for keeping track of MOV calls - value given explicitly or not
-		mov_size++;
+		MOV_INFO.results[MOV_INFO.size] = 1;   // TODO: Temporary fix for keeping track of calls with arg states
+		MOV_INFO.size++;
 		program[*i+1] = atoi(val);             // Add the explicit value to the program array
 		program[*i+2] = *val2;                 // The destination register has to be given if int value is explicit
 		*i+=2;                                 // Skip the args
 	}
 	else
 	{
-		mov_results[mov_size] = 0;
-		mov_size++;
+		MOV_INFO.results[MOV_INFO.size] = 0;
+		MOV_INFO.size++;
 		program[*i+1] = *val;
 		*i+=1;
 	}
@@ -285,8 +288,8 @@ void helper_CMP(int* i)
 		program[*i+1] = *reg; // First arg should *always* be a register
 		if (arg2)
 		{
-			cmp_results[cmp_size] = 1; // TODO: Temporary fix for keeping track of CMP calls
-			cmp_size++;
+			CMP_INFO.results[CMP_INFO.size] = 1; // TODO: Temporary way to keep track of the args with CMP calls
+			CMP_INFO.size++;
 			if (isdigit(*arg2)) // 2nd arg can be given as explicit int or another register
 			{
 				program[*i+2] = atoi(arg2);
@@ -299,8 +302,8 @@ void helper_CMP(int* i)
 		}
 		else
 		{
-			cmp_results[cmp_size] = 0;
-			cmp_size++;
+			CMP_INFO.results[CMP_INFO.size] = 0;
+			CMP_INFO.size++;
 		}
 	}
 	else
@@ -438,14 +441,14 @@ void handle_MOV()
 		int  dstReg;
 		int* dstPtr;
 
-		if (mov_index > cmp_size)
+		if (MOV_INFO.index > MOV_INFO.size)
 		{
-			fprintf(stderr, "ERROR: MOV index out of bounds of MOV size: %d > %d :: pc->%d\n", mov_index, mov_size, pc);
+			fprintf(stderr, "ERROR: MOV index out of bounds of MOV size: %d > %d :: pc->%d\n", MOV_INFO.index, MOV_INFO.size, pc);
 			running = false;
 		}
 
 		// A value is given explicitly
-		if (mov_results[mov_index] == 1)
+		if (MOV_INFO.results[MOV_INFO.index] == 1)
 		{
 			value = program[++pc];
 			dstReg = program[++pc];
@@ -456,7 +459,7 @@ void handle_MOV()
 			dstReg = program[++pc];
 			value = stack[sp--];
 		}
-		mov_index++;
+		MOV_INFO.index++;
 
 		dstPtr = getRegister((char)dstReg);
 		*dstPtr = value; // Set the register to hold the given value;
@@ -477,12 +480,12 @@ void handle_CMP()
 		pReg = getRegister((char)arg1);
 		val1 = *pReg;
 
-		if (cmp_index > cmp_size)
+		if (CMP_INFO.index > CMP_INFO.size)
 		{
-			fprintf(stderr, "ERROR: CMP index out of bounds of CMP size: %d > %d :: pc->%d\n", cmp_index, cmp_size, pc);
+			fprintf(stderr, "ERROR: CMP index out of bounds of CMP size: %d > %d :: pc->%d\n", CMP_INFO.index, CMP_INFO.size, pc);
 			running = false;
 		}
-		if (cmp_results[cmp_index] == 1)
+		if (CMP_INFO.results[CMP_INFO.index] == 1)
 		{
 			int arg2 = program[++pc];
 			if (isdigit(arg2))                      // Explicit int given
@@ -499,7 +502,7 @@ void handle_CMP()
 		{
 			val2 = stack[sp];
 		}
-		cmp_index++;
+		CMP_INFO.index++;
 
 		if (val1 == val2)
 		{
