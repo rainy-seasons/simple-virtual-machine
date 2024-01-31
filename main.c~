@@ -13,9 +13,10 @@ Registers registers = {0};
 #define pc (registers.PC)
 #define sp (registers.SP)
 
-#define MOV_FLAG      (1 << 0) // Rightmost bit represents mov flag - tells mov if the value is given (1) or pulled from the stack (0)
-#define CMP_FLAG      (1 << 1) // Second rightmost bit represents the CMP flag - records the result of a comparison. (1) if same, (0) if different
-#define CMP_GT_FLAG   (1 << 2) // (1) When CMP was greater than, and (0) when it was less than
+#define MOV_FLAG    (1 << 0) // Rightmost bit represents mov flag - tells mov if the value is given (1) or pulled from the stack (0)
+#define CMP_FLAG    (1 << 1) // Second rightmost bit represents the CMP flag - records the result of a comparison. (1) if same, (0) if different
+#define CMP_R_FLAG  (1 << 2) // (1) When CMP is taking two registers as arguments. (0) When taking one register and one explicit value
+#define CMP_GT_FLAG (1 << 3) // (1) When CMP was greater than, and (0) when it was less than
 
 int stack[STACK_SIZE];
 int program[MAX_PROGRAM_SIZE];
@@ -24,15 +25,8 @@ int program[MAX_PROGRAM_SIZE];
 // These are used to map the string instructions from program file to enum values for handler funcitons
 const char* instructionStrings[] = {"PSH", "POP", "POR", "ADD", "SUB", "MUL", "DIV", "MOV", "CMP", "JMP", "JIE", "JNE", "JGT", "JLT", "ALC", "FRE", "ST", "LD", "MSG", "HLT", "INSTRUCTION_COUNT"};
 
-// These are used to keep track of labels for jumps
 KeyValueMap LabelMap;
 char* labels[100];
-
-/* TODO: TEMPORARY WAY TO KEEP TRACK OF CMP CALLS - EXPLICIT VALUE GIVEN OR NOT */
-int cmp_results[100];
-int cmp_index = 0;
-int cmp_size = 0;
-
 
 bool running = true;
 
@@ -89,7 +83,7 @@ void loadProgram(const char* filename)
 {
 	FILE* file = fopen(filename, "r");
 
-	if (file == NULL) 
+	if (file == NULL)
 	{
 		fprintf(stderr, "ERROR: Unable to open file: %s", filename);
 		exit(EXIT_FAILURE);
@@ -279,8 +273,7 @@ void helper_CMP(int* i)
 		program[*i+1] = *reg; // First arg should *always* be a register
 		if (arg2)
 		{
-			cmp_results[cmp_size] = 1; // TODO: Temporary fix for keeping track of CMP calls
-			cmp_size++;
+			setFlag(&registers.flags, CMP_R_FLAG); // TWO VALUES ARE GIVEN - FLAG IS SET
 			if (isdigit(*arg2)) // 2nd arg can be given as explicit int or another register
 			{
 				program[*i+2] = atoi(arg2);
@@ -289,19 +282,18 @@ void helper_CMP(int* i)
 			{
 				program[*i+2] = *arg2;
 			}
-			*i+=1;
 		}
 		else
 		{
-			cmp_results[cmp_size] = 0;
-			cmp_size++;
+			clearFlag(&registers.flags, CMP_R_FLAG); // ONE VALUE IS GIVEN - CLEAR FLAG
 		}
 	}
 	else
 	{
 		fprintf(stderr, "ERROR: Inavlid usage of CMP instruction: %d - CMP {register} {register} or CMP {register} {value}", pc);
 	} 
-	*i+=1; // Skip args
+	// this somehow works even with only one arg. but changing it will break the instruction.
+	*i+=2; // Skip args
 }
 
 void helper_JMP(int* i)
@@ -357,7 +349,7 @@ void handle_ADD()
 		int val1 = stack[sp];
 		int val2 = stack[sp-1];
 		int sum = val1 + val2; 			   // Adds the top two values on the stack together
-		sp-=2;                              // decrement stack pointer
+		sp--;                              // decrement stack pointer
 		sp++;                              // Allocate space on the stack
 		stack[sp] = sum;                   // Push sum onto stack
 		printf("ADD: %d + %d = %d\n", val1, val2, sum);
@@ -457,6 +449,7 @@ void handle_CMP()
 	if (sp >= 0)
 	{
 		int  arg1 = program[++pc];
+		int  arg2 = program[++pc];
 		int  val1, val2;
 		int* pReg;
 
@@ -464,14 +457,8 @@ void handle_CMP()
 		pReg = getRegister((char)arg1);
 		val1 = *pReg;
 
-		if (cmp_index+1 > cmp_size)
+		if (isFlagSet(registers.flags, CMP_R_FLAG)) // Two values are given
 		{
-			fprintf(stderr, "ERROR: CMP index out of bounds of CMP size: %d\n", pc);
-			running = false;
-		}
-		if (cmp_results[cmp_index] == 1)
-		{
-			int arg2 = program[++pc];
 			if (isdigit(arg2))                      // Explicit int given
 			{
 				val2 = arg2;                        // Just an int
@@ -486,12 +473,11 @@ void handle_CMP()
 		{
 			val2 = stack[sp];
 		}
-		cmp_index++;
 
 		if (val1 == val2)
 		{
 			printf("CMP: %d and %d are equal.\n", val1, val2);
-			setFlag(&registers.flags, CMP_FLAG); // Tell the evaluator the result
+			setFlag(&registers.flags, CMP_FLAG);
 		}
 		else
 		{
@@ -499,10 +485,12 @@ void handle_CMP()
 			clearFlag(&registers.flags, CMP_FLAG);
 			if (val1 > val2)
 			{
+				printf("%d is greater than %d\n", val1, val2);
 				setFlag(&registers.flags, CMP_GT_FLAG); // Set the Greater Than flag
 			}
 			else
 			{
+				printf("%d is less than %d\n", val1, val2);
 				clearFlag(&registers.flags, CMP_GT_FLAG); // Clear Greater Than flag
 			}
 		}
