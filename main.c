@@ -6,7 +6,7 @@
 
 #define STACK_SIZE  1024
 #define MEMORY_SIZE 1024
-#define MAX_PROGRAM_SIZE 1000 // Max instructions to read from file
+#define MAX_PROGRAM_SIZE 1000 // Max instructions to read from file - includes arguments
 
 Registers registers = {0};
 
@@ -33,6 +33,10 @@ int cmp_results[100];
 int cmp_index = 0;
 int cmp_size = 0;
 
+/* TODO: TEMPORARY WAY TO KEEP TRACK OF MOV CALLS - EXPLICIT VALUE GIVEN OR NOT */
+int mov_results[100];
+int mov_index = 0;
+int mov_size = 0;
 
 bool running = true;
 
@@ -245,14 +249,16 @@ void helper_MOV(int* i)
 
 	if (isdigit(*val))                         // First value is a digit
 	{
-		setFlag(&registers.flags, MOV_FLAG);
+		mov_results[mov_size] = 1; 			   // TODO: Temporary fix for keeping track of MOV calls - value given explicitly or not
+		mov_size++;
 		program[*i+1] = atoi(val);             // Add the explicit value to the program array
 		program[*i+2] = *val2;                 // The destination register has to be given if int value is explicit
 		*i+=2;                                 // Skip the args
 	}
 	else
 	{
-		clearFlag(&registers.flags, MOV_FLAG); // Value is not explicit -- clear the flag
+		mov_results[mov_size] = 0;
+		mov_size++;
 		program[*i+1] = *val;
 		*i+=1;
 	}
@@ -432,8 +438,14 @@ void handle_MOV()
 		int  dstReg;
 		int* dstPtr;
 
+		if (mov_index > cmp_size)
+		{
+			fprintf(stderr, "ERROR: MOV index out of bounds of MOV size: %d > %d :: pc->%d\n", mov_index, mov_size, pc);
+			running = false;
+		}
+
 		// A value is given explicitly
-		if (isFlagSet(registers.flags, MOV_FLAG))
+		if (mov_results[mov_index] == 1)
 		{
 			value = program[++pc];
 			dstReg = program[++pc];
@@ -444,6 +456,7 @@ void handle_MOV()
 			dstReg = program[++pc];
 			value = stack[sp--];
 		}
+		mov_index++;
 
 		dstPtr = getRegister((char)dstReg);
 		*dstPtr = value; // Set the register to hold the given value;
@@ -464,9 +477,9 @@ void handle_CMP()
 		pReg = getRegister((char)arg1);
 		val1 = *pReg;
 
-		if (cmp_index+1 > cmp_size)
+		if (cmp_index > cmp_size)
 		{
-			fprintf(stderr, "ERROR: CMP index out of bounds of CMP size: %d\n", pc);
+			fprintf(stderr, "ERROR: CMP index out of bounds of CMP size: %d > %d :: pc->%d\n", cmp_index, cmp_size, pc);
 			running = false;
 		}
 		if (cmp_results[cmp_index] == 1)
