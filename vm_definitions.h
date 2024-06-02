@@ -1,4 +1,16 @@
+#ifndef VM_DEFINITIONS_H
+#define VM_DEFINITIONS_H
+
 #include <stdio.h>
+#include <stdbool.h>
+
+#define STACK_SIZE  1024
+#define MEMORY_SIZE 1024
+#define MAX_PROGRAM_SIZE 1000 // Max instructions to read from file - includes arguments
+
+#define MOV_FLAG      (1 << 0) // Rightmost bit represents mov flag - tells mov if the value is given (1) or pulled from the stack (0)
+#define CMP_FLAG      (1 << 1) // Second rightmost bit represents the CMP flag - records the result of a comparison. (1) if same, (0) if different
+#define CMP_GT_FLAG   (1 << 2) // (1) When CMP was greater than, and (0) when it was less than
 
 void handle_PSH();
 void handle_POP();
@@ -36,6 +48,9 @@ void clearFlag(int* flags, int flag);
 int isFlagSet(int flags, int flag);
 
 void init_type_vars();
+
+void set_running(bool status);
+bool is_running();
 
 typedef enum {
 	PSH, 	// Pushes a value onto the stack
@@ -90,3 +105,6 @@ typedef struct {
 
 void addToMap(KeyValueMap* map, const char* key, int value);
 int getValue(KeyValueMap* map, const char* key);
+
+
+#endif
