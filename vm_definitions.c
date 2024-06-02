@@ -6,14 +6,6 @@
 
 bool running = true;
 
-#define STACK_SIZE  1024
-#define MEMORY_SIZE 1024
-#define MAX_PROGRAM_SIZE 1000 // Max instructions to read from file - includes arguments
-
-#define MOV_FLAG      (1 << 0) // Rightmost bit represents mov flag - tells mov if the value is given (1) or pulled from the stack (0)
-#define CMP_FLAG      (1 << 1) // Second rightmost bit represents the CMP flag - records the result of a comparison. (1) if same, (0) if different
-#define CMP_GT_FLAG   (1 << 2) // (1) When CMP was greater than, and (0) when it was less than
-
 Registers registers = {0};
 #define pc (registers.PC)
 #define sp (registers.SP)
