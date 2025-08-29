@@ -89,13 +89,21 @@ void loadProgram(const char* filename)
 			continue;
 		}
 
+		if (token[0] == '\0')
+		{
+			continue; // Skip blank lines
+		}
+
 		if (token)
 		{
 			/* Token is a label */
-			if (strcmp(token, "label:") == 0)
+			if (strncmp(token, "label:", 6) == 0)
 			{
-				char* label = strtok(NULL, " ");
-				label[strcspn(label, "\r\n")] = '\0';
+				char* label = token + 6; // skip "label:" prefix
+				while (*label == ' ') 
+					label++; // trim leading spaces
+				//char* label = strtok(NULL, " ");
+				label[strcspn(label, "\r\n")] = '\0'; // trim newline
 				addToMap(&LabelMap, label, i);
 				continue;
 			}
