@@ -105,6 +105,4 @@ typedef struct {
 
 void addToMap(KeyValueMap* map, const char* key, int value);
 int getValue(KeyValueMap* map, const char* key);
-
-
 #endif

@@ -2,7 +2,6 @@ SVM_SRC = main.c vm_definitions.c
 SVM_HDRS = vm_definitions.h 
 
 TEST_SRC = test/test_vm.c vm_definitions.c lib/Unity/src/unity.c
-#TEST_HDRS = Unity/include/unity.h vm_definitions.h
 TEST_HDRS = lib/Unity/src/unity.h vm_definitions.h
 
 CC_FLAGS = -Wall -Wextra -g -std=c11

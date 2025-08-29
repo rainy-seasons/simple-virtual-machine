@@ -4,8 +4,6 @@
 #include <string.h>
 #include <stdbool.h>
 
-bool running = true;
-
 Registers registers = {0};
 #define pc (registers.PC)
 #define sp (registers.SP)
@@ -13,14 +11,15 @@ Registers registers = {0};
 int stack[STACK_SIZE];
 int program[MAX_PROGRAM_SIZE];
 
-// These are used to map the string instructions from program file to enum values for handler funcitons
+bool running = true;
+
+// These are used to map the string instructions from program file to enum values for handler functions
 const char* instructionStrings[] = {"PSH", "POP", "POR", "ADD", "SUB", "MUL", "DIV", "MOV", "CMP", "JMP", "JIE", "JNE", "JGT", "JLT", "ALC", "FRE", "ST", "LD", "MSG", "HLT", "INSTRUCTION_COUNT"};
 
 // These are used to keep track of labels for jumps
 KeyValueMap LabelMap;
 char* labels[100];
 
-// TODO: These are //temporory. Just to keep track of arg count for each instruction of its kind.
 ARG_INFO MOV_INFO;
 ARG_INFO CMP_INFO;
 
@@ -189,7 +188,10 @@ int* getRegister(char reg)
 			fprintf(stderr, "ERROR: Unknown register \"%d\"\n", reg);
 			break;
 	}
-	return dstPtr;
+	if (dstPtr)
+	{
+		return dstPtr;
+	}
 }
 
 /* Adds label to map */
